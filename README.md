@@ -12,7 +12,7 @@ An RTMP stream recaster / splitter
 Calling prism with one or multiple RTMP URLs will listen for an incoming RTMP
 connection, which will then get re-cast to all given URLs:
 
-    prism url1 [url2, ...]
+    prism URL [URL...]
 
 If you want prism to listen on a different port than the default 1935, call it
 with the `--bind` flag:

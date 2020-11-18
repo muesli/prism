@@ -17,7 +17,7 @@ var (
 func main() {
 	flag.Parse()
 	if len(flag.Args()) == 0 {
-		fmt.Println("usage: prism url1 [url2, ...]")
+		fmt.Println("usage: prism URL [URL...]")
 		os.Exit(1)
 	}
 
