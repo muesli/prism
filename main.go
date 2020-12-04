@@ -23,13 +23,19 @@ type RTMPConnection struct {
 	packets chan av.Packet
 }
 
-func NewRTMPConnection(u string) (*RTMPConnection, error) {
+func NewRTMPConnection(u string) *RTMPConnection {
 	r := &RTMPConnection{
-		url:     u,
-		packets: make(chan av.Packet, 2),
+		url: u,
 	}
+	r.reset()
 
-	return r, nil // r.Dial()
+	return r
+}
+
+func (r *RTMPConnection) reset() {
+	r.packets = make(chan av.Packet, 2)
+	r.conn = nil
+	r.header = nil
 }
 
 func (r *RTMPConnection) Dial() error {
@@ -57,10 +63,8 @@ func (r *RTMPConnection) Disconnect() error {
 		return err
 	}
 
-	r.conn = nil
-	r.header = nil
 	close(r.packets)
-	r.packets = make(chan av.Packet, 2)
+	r.reset()
 
 	fmt.Println("connection closed:", r.url)
 	return nil
@@ -124,13 +128,7 @@ func main() {
 
 	conns := make([]*RTMPConnection, len(flag.Args()))
 	for i, u := range flag.Args() {
-		c, err := NewRTMPConnection(u)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		conns[i] = c
+		conns[i] = NewRTMPConnection(u)
 	}
 
 	server.HandlePublish = func(conn *rtmp.Conn) {
