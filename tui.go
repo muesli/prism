@@ -8,10 +8,17 @@ import (
 
 var color = termenv.ColorProfile().Color
 
+type logMsg struct {
+	status  int
+	message string
+	replace bool
+}
+
 type errMsg error
 
 type model struct {
 	app     *TUI
+	logs    []Log
 	spinner spinner.Model
 
 	quitting bool
@@ -29,7 +36,7 @@ func initialModel(a *TUI) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return spinner.Tick
+	return tea.Batch(m.awaitLog, spinner.Tick)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -51,6 +58,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg
 		return m, nil
 
+	case logMsg:
+		if msg.replace {
+			m.replace(msg.status, msg.message)
+		} else {
+			m.log(msg.status, msg.message)
+		}
+		return m, m.awaitLog
+
 	default:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -64,7 +79,7 @@ func (m model) View() string {
 	}
 
 	var s string
-	for _, l := range m.app.logs {
+	for _, l := range m.logs {
 		var status termenv.Style
 		switch l.Status {
 		case 0:
@@ -87,8 +102,29 @@ func (m model) View() string {
 	return "\n" + s + "\n"
 }
 
+func (m *model) log(status int, message string) {
+	m.logs = append(m.logs, Log{status, message})
+}
+
+func (m *model) replace(status int, message string) {
+	l := len(m.logs)
+	if l > 0 && m.logs[l-1].Status == status {
+		m.logs = append(m.logs[:l-1], m.logs[l:]...)
+	}
+
+	m.logs = append(m.logs, Log{status, message})
+}
+
+func (m model) awaitLog() tea.Msg {
+	return <-m.app.logs
+}
+
 type TUI struct {
-	logs []Log
+	logs chan logMsg
+}
+
+func NewTUI() *TUI {
+	return &TUI{make(chan logMsg)}
 }
 
 func (t *TUI) Run() error {
@@ -97,14 +133,13 @@ func (t *TUI) Run() error {
 }
 
 func (t *TUI) Log(status int, message string) {
-	t.logs = append(t.logs, Log{status, message})
+	go t.log(status, message, false)
 }
 
 func (t *TUI) Replace(status int, message string) {
-	l := len(t.logs)
-	if l > 0 && t.logs[l-1].Status == status {
-		t.logs = append(t.logs[:l-1], t.logs[l:]...)
-	}
+	go t.log(status, message, true)
+}
 
-	t.logs = append(t.logs, Log{status, message})
+func (t *TUI) log(status int, message string, replace bool) {
+	t.logs <- logMsg{status, message, replace}
 }
