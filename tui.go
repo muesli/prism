@@ -8,31 +8,53 @@ import (
 
 var color = termenv.ColorProfile().Color
 
-type errMsg error
-
-type model struct {
-	app     *TUI
-	spinner spinner.Model
-
-	quitting bool
-	err      error
+type logMsg struct {
+	status  int
+	message string
+	replace bool
 }
 
-func initialModel(a *TUI) model {
+type errMsg error
+
+type TUI struct {
+	logs     []Log
+	activity chan logMsg
+	spinner  spinner.Model
+
+	err error
+}
+
+func NewTUI() *TUI {
 	s := spinner.NewModel()
 	s.Spinner = spinner.Globe
 
-	return model{
-		app:     a,
-		spinner: s,
+	return &TUI{
+		spinner:  s,
+		activity: make(chan logMsg),
 	}
 }
 
-func (m model) Init() tea.Cmd {
-	return spinner.Tick
+func (t TUI) Run() error {
+	return tea.NewProgram(t).Start()
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (t TUI) Log(status int, message string) {
+	go func() {
+		t.activity <- logMsg{status, message, false}
+	}()
+}
+
+func (t TUI) Replace(status int, message string) {
+	go func() {
+		t.activity <- logMsg{status, message, true}
+	}()
+}
+
+func (t TUI) Init() tea.Cmd {
+	return tea.Batch(t.waitForLogging, spinner.Tick)
+}
+
+func (t TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -41,30 +63,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			fallthrough
 		case "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
+			return t, tea.Quit
 		default:
-			return m, nil
+			return t, nil
 		}
 
 	case errMsg:
-		m.err = msg
-		return m, nil
+		t.err = msg
+		return t, nil
+
+	case logMsg:
+		if msg.replace {
+			l := len(t.logs)
+			if l > 0 && t.logs[l-1].Status == msg.status {
+				t.logs = append(t.logs[:l-1], t.logs[l:]...)
+			}
+		}
+		t.logs = append(t.logs, Log{msg.status, msg.message})
+		return t, t.waitForLogging
 
 	default:
 		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
+		t.spinner, cmd = t.spinner.Update(msg)
+		return t, cmd
 	}
 }
 
-func (m model) View() string {
-	if m.err != nil {
-		return m.err.Error()
+func (t TUI) View() string {
+	if t.err != nil {
+		return t.err.Error()
 	}
 
 	var s string
-	for _, l := range m.app.logs {
+	for _, l := range t.logs {
 		var status termenv.Style
 		switch l.Status {
 		case 0:
@@ -76,7 +107,7 @@ func (m model) View() string {
 		case 3:
 			status = termenv.String("⏩").Foreground(color("165"))
 		case 4:
-			status = termenv.String(m.spinner.View()).Foreground(color("115"))
+			status = termenv.String(t.spinner.View()).Foreground(color("115"))
 		default:
 			panic("unknown status")
 		}
@@ -87,24 +118,6 @@ func (m model) View() string {
 	return "\n" + s + "\n"
 }
 
-type TUI struct {
-	logs []Log
-}
-
-func (t *TUI) Run() error {
-	p := tea.NewProgram(initialModel(t))
-	return p.Start()
-}
-
-func (t *TUI) Log(status int, message string) {
-	t.logs = append(t.logs, Log{status, message})
-}
-
-func (t *TUI) Replace(status int, message string) {
-	l := len(t.logs)
-	if l > 0 && t.logs[l-1].Status == status {
-		t.logs = append(t.logs[:l-1], t.logs[l:]...)
-	}
-
-	t.logs = append(t.logs, Log{status, message})
+func (t TUI) waitForLogging() tea.Msg {
+	return <-t.activity
 }

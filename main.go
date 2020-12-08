@@ -34,7 +34,7 @@ func main() {
 
 	var a App
 	if isatty.IsTerminal(os.Stdout.Fd()) {
-		a = &TUI{}
+		a = NewTUI()
 		log = a.(*TUI)
 	} else {
 		a = &Text{}
