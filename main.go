@@ -148,10 +148,8 @@ func main() {
 	}
 
 	server.HandlePublish = func(conn *rtmp.Conn) {
-		connectingKey := strings.ReplaceAll(conn.URL.Path, "/", "")
-
-		if connectingKey != *streamKey {
-			fmt.Println("Connection attempt made using incorrect key: ", connectingKey)
+		if !strings.HasSuffix(conn.URL.Path, *streamKey) {
+			fmt.Println("Connection attempt made using incorrect key: ", conn.URL.Path)
 			conn.Close()
 			return
 		}
