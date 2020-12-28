@@ -17,6 +17,7 @@ import (
 var (
 	bind      = flag.String("bind", ":1935", "bind address")
 	streamKey = flag.String("key", "", "stream key")
+	noKey     = flag.Bool("no-key", false, "passing will prevent a key from being generated and accept rtmp without a key")
 )
 
 type RTMPConnection struct {
@@ -122,7 +123,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *streamKey == "" {
+	if *streamKey == "" && !*noKey {
 		uuid, err := newUUID()
 		if err != nil {
 			fmt.Println("Can't generate rtmp key:", err)
@@ -132,7 +133,11 @@ func main() {
 		*streamKey = uuid
 	}
 
-	fmt.Println("RTMP stream key set to: ", *streamKey)
+	if *noKey {
+		fmt.Println("You chose not to use a key.  Anyone who can access your exposed port will be able to stream")
+	} else {
+		fmt.Println("RTMP stream key set to:", *streamKey)
+	}
 
 	fmt.Println("Starting RTMP server...")
 	config := &rtmp.Config{
@@ -148,7 +153,7 @@ func main() {
 	}
 
 	server.HandlePublish = func(conn *rtmp.Conn) {
-		if !strings.HasSuffix(conn.URL.Path, *streamKey) {
+		if !strings.HasSuffix(conn.URL.Path, *streamKey) && !*noKey {
 			fmt.Println("Connection attempt made using incorrect key:", conn.URL.Path)
 			conn.Close()
 			return
