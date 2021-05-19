@@ -2,7 +2,7 @@
 
 [![Latest Release](https://img.shields.io/github/release/muesli/prism.svg)](https://github.com/muesli/prism/releases)
 [![Build Status](https://github.com/muesli/prism/workflows/build/badge.svg)](https://github.com/muesli/prism/actions)
-[![Go ReportCard](http://goreportcard.com/badge/muesli/prism)](http://goreportcard.com/report/muesli/prism)
+[![Go ReportCard](https://goreportcard.com/badge/muesli/prism)](https://goreportcard.com/report/muesli/prism)
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://pkg.go.dev/github.com/muesli/prism)
 
 An RTMP stream recaster / splitter
