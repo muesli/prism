@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	// TODO: switch to joy5?
@@ -12,7 +14,8 @@ import (
 )
 
 var (
-	bind = flag.String("bind", ":1935", "bind address")
+	bind         = flag.String("bind", ":1935", "bind address")
+	outputs_file = flag.String("outputs-file", "outputs.txt", "output URLs file")
 )
 
 type RTMPConnection struct {
@@ -111,12 +114,47 @@ func (r *RTMPConnection) Loop() error {
 	return nil
 }
 
+func readURLsFromFile(filename string) ([]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var urls []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		urls = append(urls, strings.TrimSpace(scanner.Text()))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return urls, nil
+}
+
 func main() {
 	flag.Parse()
-	if len(flag.Args()) == 0 {
-		fmt.Println("usage: prism URL [URL...]")
+	var urls []string
+	var err1 error
+	if *outputs_file != "" {
+		if _, err := os.Stat("outputs.txt"); err == nil {
+			urls, err1 = readURLsFromFile(*outputs_file)
+			fmt.Println("Read", len(urls), "output URLs from", *outputs_file)
+		}
+	}
+	// if flag.args is over 0, add all args to urls
+	if len(flag.Args()) > 0 {
+		urls = append(urls, flag.Args()...)
+	}
+
+	if err1 != nil {
+		fmt.Println("Error reading output URLs from file:", err1)
 		os.Exit(1)
 	}
+
+	fmt.Println("Found", len(urls), "output URLs")
 
 	fmt.Println("Starting RTMP server...")
 	config := &rtmp.Config{
@@ -126,8 +164,9 @@ func main() {
 	server := rtmp.NewServer(config)
 	server.Addr = *bind
 
-	conns := make([]*RTMPConnection, len(flag.Args()))
-	for i, u := range flag.Args() {
+	conns := make([]*RTMPConnection, len(urls))
+	for i, u := range urls {
+		fmt.Println(i, ":", u)
 		conns[i] = NewRTMPConnection(u)
 	}
 
