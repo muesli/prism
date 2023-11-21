@@ -1,0 +1,9 @@
+[
+  {
+    "enabled": true,
+    "url": "rtmp://localhost/live/test",
+    "width": 1920,
+    "height": 1080,
+    "bitrate": 6000
+  }
+]

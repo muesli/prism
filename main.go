@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	// TODO: switch to joy5?
@@ -14,9 +13,17 @@ import (
 )
 
 var (
-	bind         = flag.String("bind", ":1935", "bind address")
-	outputs_file = flag.String("outputs-file", "outputs.txt", "output URLs file")
+	bind        = flag.String("bind", ":1935", "bind address")
+	config_file = flag.String("config", "config.json", "config file")
 )
+
+type URLConfig struct {
+	Enabled bool   `json:"enabled"`
+	URL     string `json:"url"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
+	Bitrate int    `json:"bitrate"`
+}
 
 type RTMPConnection struct {
 	url  string
@@ -114,60 +121,72 @@ func (r *RTMPConnection) Loop() error {
 	return nil
 }
 
-func readURLsFromFile(filename string) ([]string, error) {
+func readConfigFromFile(filename string) ([]URLConfig, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	var urls []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		urls = append(urls, strings.TrimSpace(scanner.Text()))
-	}
-
-	if err := scanner.Err(); err != nil {
+	var configs []URLConfig
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&configs)
+	if err != nil {
 		return nil, err
 	}
 
-	return urls, nil
+	return configs, nil
 }
 
 func main() {
 	flag.Parse()
-	var urls []string
-	var err1 error
-	if *outputs_file != "" {
-		if _, err := os.Stat("outputs.txt"); err == nil {
-			urls, err1 = readURLsFromFile(*outputs_file)
-			fmt.Println("Read", len(urls), "output URLs from", *outputs_file)
+	var config []URLConfig
+	var err error
+	if *config_file != "" {
+		if _, err := os.Stat(*config_file); err == nil {
+			config, err = readConfigFromFile(*config_file)
+			fmt.Println("Read", len(config), "outputs from", *config_file)
 		}
 	}
-	// if flag.args is over 0, add all args to urls
-	if len(flag.Args()) > 0 {
-		urls = append(urls, flag.Args()...)
+	for _, arg := range flag.Args() {
+		config = append(config, URLConfig{Enabled: true, URL: arg})
 	}
 
-	if err1 != nil {
-		fmt.Println("Error reading output URLs from file:", err1)
+	if len(config) < 1 {
+		config = append(config, URLConfig{Enabled: true, URL: "rtmp://localhost/live/test", Width: 1920, Height: 1080, Bitrate: 6000})
+		file, err := os.Create(*config_file)
+		if err != nil {
+			fmt.Println("Error creating config file:", err)
+			os.Exit(1)
+		}
+		defer file.Close()
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", "  ")
+		err = encoder.Encode(config)
+
+		if err != nil {
+			fmt.Println("Error writing config file:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Created default config file", *config_file, "with one example output")
 		os.Exit(1)
 	}
 
-	fmt.Println("Found", len(urls), "output URLs")
+	fmt.Println("Found", len(config), "outputs")
 
 	fmt.Println("Starting RTMP server...")
-	config := &rtmp.Config{
+	rtmp_config := &rtmp.Config{
 		ChunkSize:  128,
 		BufferSize: 0,
 	}
-	server := rtmp.NewServer(config)
+	server := rtmp.NewServer(rtmp_config)
 	server.Addr = *bind
 
-	conns := make([]*RTMPConnection, len(urls))
-	for i, u := range urls {
-		fmt.Println(i, ":", u)
-		conns[i] = NewRTMPConnection(u)
+	conns := make([]*RTMPConnection, len(config))
+	for i, u := range config {
+		// print u object
+		fmt.Println(u)
+		conns[i] = NewRTMPConnection(u.URL)
 	}
 
 	server.HandlePublish = func(conn *rtmp.Conn) {
@@ -214,7 +233,7 @@ func main() {
 	}
 
 	fmt.Println("Waiting for incoming connection...")
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
