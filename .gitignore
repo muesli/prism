@@ -18,3 +18,5 @@ prism
 dist/
 .envrc
 /outputs.txt
+/config.json
+config.json

@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
+	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	// TODO: switch to joy5?
@@ -15,6 +18,7 @@ import (
 var (
 	bind        = flag.String("bind", ":1935", "bind address")
 	config_file = flag.String("config", "config.json", "config file")
+	config      []URLConfig
 )
 
 type URLConfig struct {
@@ -121,6 +125,75 @@ func (r *RTMPConnection) Loop() error {
 	return nil
 }
 
+func handleAddConfig(w http.ResponseWriter, r *http.Request) {
+	config = append(config, URLConfig{})
+	saveConfig()
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func handleRemoveConfig(w http.ResponseWriter, r *http.Request) {
+	indexStr := r.URL.Query().Get("index")
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index < 0 || index >= len(config) {
+		http.Error(w, "Invalid index", http.StatusBadRequest)
+		return
+	}
+	config = append(config[:index], config[index+1:]...)
+	saveConfig()
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func handleEditConfig(w http.ResponseWriter, r *http.Request) {
+	tmpl := template.Must(template.ParseFiles("html/edit_config.html"))
+	tmpl.Execute(w, config)
+}
+func handleSaveConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	// Parse the form data
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "Error parsing form", http.StatusInternalServerError)
+		return
+	}
+
+	// Update the config with the form data
+	// ...
+
+	// Save the config to the file
+	file, err := os.Create(*config_file)
+	if err != nil {
+		http.Error(w, "Error creating config file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(config)
+	if err != nil {
+		http.Error(w, "Error writing config file", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func saveConfig() {
+	file, err := os.Create(*config_file)
+	if err != nil {
+		fmt.Println("Error creating config file:", err)
+		return
+	}
+	defer file.Close()
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(config)
+	if err != nil {
+		fmt.Println("Error writing config file:", err)
+	}
+}
 func readConfigFromFile(filename string) ([]URLConfig, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -140,7 +213,6 @@ func readConfigFromFile(filename string) ([]URLConfig, error) {
 
 func main() {
 	flag.Parse()
-	var config []URLConfig
 	var err error
 	if *config_file != "" {
 		if _, err := os.Stat(*config_file); err == nil {
@@ -231,6 +303,13 @@ func main() {
 			}
 		}
 	}
+
+	go func() {
+		fmt.Println("Starting web server on http://localhost:8080")
+		http.HandleFunc("/", handleEditConfig)
+		http.HandleFunc("/save", handleSaveConfig)
+		http.ListenAndServe(":8080", nil)
+	}()
 
 	fmt.Println("Waiting for incoming connection...")
 	err = server.ListenAndServe()

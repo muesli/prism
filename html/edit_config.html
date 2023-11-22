@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Config</title>
+</head>
+<body>
+    <h1>Edit Config</h1>
+    <form action="/save" method="post">
+        <button type="button" onclick="addConfig()">Add Config</button>
+        {{range $index, $config := .}}
+        <h2>URL {{$index}}</h2>
+        <label>
+            Enabled:
+            <input type="checkbox" name="enabled[{{$index}}]" {{if $config.Enabled}}checked{{end}}>
+        </label>
+        <label>
+            URL:
+            <input type="text" name="url[{{$index}}]" value="{{$config.URL}}">
+        </label>
+        <label>
+            Width:
+            <input type="number" name="width[{{$index}}]" value="{{$config.Width}}">
+        </label>
+        <label>
+            Height:
+            <input type="number" name="height[{{$index}}]" value="{{$config.Height}}">
+        </label>
+        <label>
+            Bitrate:
+            <input type="number" name="bitrate[{{$index}}]" value="{{$config.Bitrate}}">
+        </label>
+        <button type="button" onclick="removeConfig({$index})">Remove Config</button>
+        {{end}}
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>
