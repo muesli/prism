@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 
 var (
 	bind        = flag.String("bind", ":1935", "bind address")
+	bind_web    = flag.String("bind_web", ":8080", "bind address for web server")
 	config_file = flag.String("config", "config.json", "config file")
 	config      []URLConfig
 )
@@ -125,10 +127,21 @@ func (r *RTMPConnection) Loop() error {
 	return nil
 }
 
+// region webserver
+
+func logRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s %s %s", r.Method, r.URL.Path, r.URL.RawQuery, r.RemoteAddr)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func handleAddConfig(w http.ResponseWriter, r *http.Request) {
 	config = append(config, URLConfig{})
 	saveConfig()
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+	fmt.Println("Added new config entry")
+
 }
 func handleRemoveConfig(w http.ResponseWriter, r *http.Request) {
 	indexStr := r.URL.Query().Get("index")
@@ -139,6 +152,7 @@ func handleRemoveConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	config = append(config[:index], config[index+1:]...)
 	saveConfig()
+	fmt.Println("Removed config at index", index)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 func handleEditConfig(w http.ResponseWriter, r *http.Request) {
@@ -194,6 +208,9 @@ func saveConfig() {
 		fmt.Println("Error writing config file:", err)
 	}
 }
+
+// endregion webserver
+
 func readConfigFromFile(filename string) ([]URLConfig, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -216,7 +233,7 @@ func main() {
 	var err error
 	if *config_file != "" {
 		if _, err := os.Stat(*config_file); err == nil {
-			config, err = readConfigFromFile(*config_file)
+			config, _ = readConfigFromFile(*config_file)
 			fmt.Println("Read", len(config), "outputs from", *config_file)
 		}
 	}
@@ -306,9 +323,11 @@ func main() {
 
 	go func() {
 		fmt.Println("Starting web server on http://localhost:8080")
-		http.HandleFunc("/", handleEditConfig)
-		http.HandleFunc("/save", handleSaveConfig)
-		http.ListenAndServe(":8080", nil)
+		http.Handle("/", logRequest(http.HandlerFunc(handleEditConfig)))
+		http.Handle("/add", logRequest(http.HandlerFunc(handleAddConfig)))
+		http.Handle("/remove", logRequest(http.HandlerFunc(handleRemoveConfig)))
+		http.Handle("/save", logRequest(http.HandlerFunc(handleSaveConfig)))
+		http.ListenAndServe(*bind_web, nil)
 	}()
 
 	fmt.Println("Waiting for incoming connection...")

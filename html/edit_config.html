@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Edit Config</title>
+    <title>Prism RTSP Splitter</title>
     <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
@@ -26,16 +26,41 @@
                         <label>Height:</label>
                         <input type="number" class="form-control" name="height[{{$index}}]" value="{{$config.Height}}">
                     </div>
-                    <button type="button" class="btn btn-danger" onclick="removeConfig({{$index}})">Remove Config</button>
-                </div>
+                    <button type="button" class="btn btn-danger" onclick="removeConfig({{$index}})">Remove Output</button>                </div>
             </div>
             {{end}}
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="submit" class="btn btn-primary">Save</button>&nbsp;
+            <button type="button" class="btn btn-success" onclick="addConfig()">Add Output</button>
         </form>
-        <button type="button" class="btn btn-success" onclick="addConfig()">Add Config</button>
-    </div>
+        </div>
 
     <!-- Include Bootstrap JS -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        function removeConfig(index) {
+            fetch('/remove?index=' + index, {method: 'POST'})
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        }
+        function addConfig() {
+            fetch('/add', {method: 'POST'})
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        }
+    </script>
 </body>
 </html>
