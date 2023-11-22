@@ -14,9 +14,11 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+*.exe
+
 prism
 dist/
 .envrc
-/outputs.txt
-/config.json
+outputs.txt
 config.json
+/config.bak.json
