@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prism RTSP Splitter</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Config</h1>
+        <form action="/save" method="post">
+            {{range $index, $config := .}}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">URL {{$index}}</h5>
+                    <div class="form-group">
+                        <input type="checkbox" class="form-control" name="enabled[{{$index}}]" {{if $config.Enabled}}checked{{end}}>
+                        <label>URL:</label>
+                        <input type="text" class="form-control" name="url[{{$index}}]" value="{{$config.URL}}">
+                    </div>
+                    <div class="form-group">
+                        <label>Bitrate:</label>
+                        <input type="number" class="form-control" name="bitrate[{{$index}}]" value="{{$config.Bitrate}}">
+                        <label>Width:</label>
+                        <input type="number" class="form-control" name="width[{{$index}}]" value="{{$config.Width}}">
+                        <label>Height:</label>
+                        <input type="number" class="form-control" name="height[{{$index}}]" value="{{$config.Height}}">
+                    </div>
+                    <button type="button" class="btn btn-danger" onclick="removeConfig({{$index}})">Remove Output</button>                </div>
+            </div>
+            {{end}}
+            <button type="submit" class="btn btn-primary">Save</button>&nbsp;
+            <button type="button" class="btn btn-success" onclick="addConfig()">Add Output</button>
+        </form>
+        </div>
+
+    <!-- Include Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        function removeConfig(index) {
+            fetch('/remove?index=' + index, {method: 'POST'})
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        }
+        function addConfig() {
+            fetch('/add', {method: 'POST'})
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        }
+    </script>
+</body>
+</html>
