@@ -2,36 +2,40 @@
 <html>
 <head>
     <title>Edit Config</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Edit Config</h1>
-    <form action="/save" method="post">
-        <button type="button" onclick="addConfig()">Add Config</button>
-        {{range $index, $config := .}}
-        <h2>URL {{$index}}</h2>
-        <label>
-            Enabled:
-            <input type="checkbox" name="enabled[{{$index}}]" {{if $config.Enabled}}checked{{end}}>
-        </label>
-        <label>
-            URL:
-            <input type="text" name="url[{{$index}}]" value="{{$config.URL}}">
-        </label>
-        <label>
-            Width:
-            <input type="number" name="width[{{$index}}]" value="{{$config.Width}}">
-        </label>
-        <label>
-            Height:
-            <input type="number" name="height[{{$index}}]" value="{{$config.Height}}">
-        </label>
-        <label>
-            Bitrate:
-            <input type="number" name="bitrate[{{$index}}]" value="{{$config.Bitrate}}">
-        </label>
-        <button type="button" onclick="removeConfig({$index})">Remove Config</button>
-        {{end}}
-        <button type="submit">Save</button>
-    </form>
+    <div class="container">
+        <h1>Edit Config</h1>
+        <form action="/save" method="post">
+            {{range $index, $config := .}}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">URL {{$index}}</h5>
+                    <div class="form-group">
+                        <input type="checkbox" class="form-control" name="enabled[{{$index}}]" {{if $config.Enabled}}checked{{end}}>
+                        <label>URL:</label>
+                        <input type="text" class="form-control" name="url[{{$index}}]" value="{{$config.URL}}">
+                    </div>
+                    <div class="form-group">
+                        <label>Bitrate:</label>
+                        <input type="number" class="form-control" name="bitrate[{{$index}}]" value="{{$config.Bitrate}}">
+                        <label>Width:</label>
+                        <input type="number" class="form-control" name="width[{{$index}}]" value="{{$config.Width}}">
+                        <label>Height:</label>
+                        <input type="number" class="form-control" name="height[{{$index}}]" value="{{$config.Height}}">
+                    </div>
+                    <button type="button" class="btn btn-danger" onclick="removeConfig({{$index}})">Remove Config</button>
+                </div>
+            </div>
+            {{end}}
+            <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+        <button type="button" class="btn btn-success" onclick="addConfig()">Add Config</button>
+    </div>
+
+    <!-- Include Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
